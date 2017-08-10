@@ -1,0 +1,49 @@
+<!DOCTYPE HTML>
+<html>
+    <head>       
+        <script src="//api.bitrix24.com/api/v1/"></script>
+        <script src="jquery-3.1.1.min.js"></script>
+        <script src="app.js"></script>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="bootstrap-3.3.7-dist\css\bootstrap.min.css">
+    </head>
+    <body>
+        <div id="app">
+            <div id="user-name"></div>
+            <table id="filterTable" class="table table-bordered table-hover filterTable">
+                <tr ><h2 >Настройки отчёта</h2></tr>
+                <tr class="labelRow info">
+                    <td><label for="filterUsersList">Выберите сотрудника</label></td>
+                    <td><label for="filterBeginTime">Начальное время интервала</label></td>
+                    <td><label for="filterEndTime">Конечное время интервала</label></td>                    
+                    <td><label for="filterCompany">Выбор компании</label></td>
+                </tr>
+                <tr id="filterHead" class="filterHead">
+                    <form id="filterData" class="form-group">                    
+                        <td>                        
+                            <select id="filterUsersList" required name = "chosenUser" class="form-control">				            
+				                                            
+                            </select>
+                        </td>
+                        <td><input id="filterBeginTime" value="2013-01-01T00:00" type="datetime-local" class="form-control"></td>
+                        <td><input id="filterEndTime" type="datetime-local" class="form-control"></td>
+                                           
+                        <td><input id="filterButton" type="button" value="Сформировать отчет" class="btn btn-primary"></td>
+                    </form>
+                </tr>
+            </table>
+            <h2 style="text-align:center" class="mainTableHeader">Отчет</h2>
+            <table id="mainTable" class="mainTable" width="100%" class="table table-bordered table-hover filterTable">                
+                <tr id="tableHead" class="tableHead labelRow success">
+                    <td class="tableNumber">№</td>                    
+                    <td id="tableTaskName">Компания</td>
+                    <td id="tableDeadline">Количество звонков</td>
+                    <td id="tableDeadline">Контакт</td>
+                    <td id="tableClosedDate">Дата начала разговора</td>
+                    <td id="tableClosedDate">Продолжительность звонка</td>
+                    <td id="tableClosedDate">Тип звонка</td>
+                </tr>                
+            </table>
+        </div>
+    </body>    
+</html>
