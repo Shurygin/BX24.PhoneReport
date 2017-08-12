@@ -25,15 +25,14 @@
 				                                            
                             </select>
                         </td>
-                        <td><input id="filterBeginTime" value="2013-01-01T00:00" type="datetime-local" class="form-control"></td>
-                        <td><input id="filterEndTime" type="datetime-local" class="form-control"></td>
-                                           
+                        <td><input id="filterBeginTime" type="datetime-local" class="form-control"></td>
+                        <td><input id="filterEndTime" type="datetime-local" class="form-control"></td>                                           
                         <td><input id="filterButton" type="button" value="Сформировать отчет" class="btn btn-primary"></td>
                     </form>
                 </tr>
             </table>
             <h2 style="text-align:center" class="mainTableHeader">Отчет</h2>
-            <table id="mainTable" class="mainTable" width="100%" class="table table-bordered table-hover filterTable">                
+            <table id="mainTable"  width="100%" class="mainTable table table-bordered table-hover filterTable table-bordered">                
                 <tr id="tableHead" class="tableHead labelRow success">
                     <td class="tableNumber">№</td>                    
                     <td id="tableTaskName">Компания</td>
@@ -45,5 +44,6 @@
                 </tr>                
             </table>
         </div>
+        <div id="elemForDispatch"></div>
     </body>    
 </html>
