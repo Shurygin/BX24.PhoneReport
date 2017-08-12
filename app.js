@@ -12,7 +12,7 @@ let leadID=[];
 let contactID=[];
 let unknownCalls=[],leadCalls=[],contactCalls=[];
 let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,callTime="";
-let row="";
+let row="",companyNumber=0;
 
 
 $(document).ready(function(){
@@ -105,37 +105,40 @@ $(document).ready(function(){
                 }   
             );
         }); 
-        $('#elemForDispatch').blur(function(){
-            row=`<tr><td>${rowNumber}</td><td class="detailsForCalls">Не закреплены</td><td>${nullCount}</td></tr>`;
-            $('#tableHead').after(row);
-            rowNumber++;
+        $('#elemForDispatch').blur(function(){            
+            if(nullCount!=0){                
+                row=`<tr class="${companyNumber}"><td>${rowNumber}</td><td class="detailsForCalls">Не закреплены</td><td>${nullCount}</td></tr>`;                
+                $('#tableHead').after(row);
+                rowNumber++;
+                companyNumber++;                
+            }      
         });
         $(document).on('click','.detailsForCalls',function(){            
-            let companyName=$(this).html();  
-             let rowClass="detail"+$(this).html();
-            $(this).attr('class','clickedForDetails');                      
-            if(companyName=="Не закреплены"){
-                for (i=0;i<nullCount;i++){
-                    callTime=(Math.floor(unknownCalls[i].CALL_DURATION / 60)) + ':' + (unknownCalls[i].CALL_DURATION % 60);
-                    if (unknownCalls[i].CALL_CATEGORY=='external'){
-                        row=`<tr class="${rowClass}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>Неизвестный</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
-                    } else{
-                        row=`<tr class="${rowClass}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>Неизвестный</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
-                    }                    
-                    if (i==0){
-                        $(this).parent().after(row);
-                        rowNumber++;
-                    } else {
-                        $(rowClass).last().after(row);
-                        rowNumber++;                       
-                    }                    
-                }                
-            } 
+            companyNumber=$(this).parent().attr('class');            
+            for (i=0;i<nullCount;i++){
+                        callTime=(Math.floor(unknownCalls[i].CALL_DURATION / 60)) + ':' + (unknownCalls[i].CALL_DURATION % 60);
+                        if (unknownCalls[i].CALL_CATEGORY=='external'){
+                            row=`<tr class="detailRow${companyNumber}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>Неизвестный</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
+                        } else{
+                            row=`<tr class="detailRow${companyNumber}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>Неизвестный</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
+                        }                    
+                        if (i==0){                            
+                            $('.detailsForCalls').parent().after(row);
+                            rowNumber++;
+                        } else if (i==(nullCount-1)){
+                            $(`.detailRow${companyNumber}`).last().after(row);                            
+                            rowNumber++;                            
+                        }  else {
+                            $(`.detailRow${companyNumber}`).last().after(row);
+                            rowNumber++;                       
+                        }                    
+                    }
+            $(this).attr('class','clickedForDetails');
         }); 
-        $(document).on('click','.clickedForDetails',function(){           
-            let rowClass="detail"+$(this).html();
-            $(rowClass).html('');
-            $(this).removeAttr('class');
+        $(document).on('click','.clickedForDetails',function(){
+            companyNumber=$(this).parent().attr('class');            
+            $(`.detailRow${companyNumber}`).hide();
+            $(this).attr('class','detailsForCalls');
         });
         
     });
