@@ -4,18 +4,18 @@ Date.prototype.toDateInputValue = (function() {
     return local.toJSON().slice(0,10);
 }); 
 
-        let emplsFound = new Event("click");
-        let IDFound = new Event("blur");
-        let callsFound = new Event("dblclick");
-        let unworkedFound = new Event("focus");
-        let companyesFound = new Event("change");
+        let clickEvent = new Event("click");
+        let blurEvent = new Event("blur");
+        let dblclickEvent = new Event("dblclick");
+        let focusEvent = new Event("focus");
+        let changeEvent = new Event("change");
 
 let unknownCalls=[],leadCalls=[],contactCalls=[];
         let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,currentLead=0,companyNumber=0,filteredUser=0;
         let row="",currentContact="",callTime="";
-let currentCall,time;
-let timeD,timeB;
-
+let currentCall;
+let filterBeginTime,filterEndTime,filterMinTime,filterMaxTime,filterOptions;
+       
 
 $(document).ready(function(){
     let l,k,i,count=0;
@@ -41,7 +41,7 @@ $(document).ready(function(){
                      if (result.answer.result[i].LAST_NAME!=""&&result.answer.result[i].LAST_NAME!=null&&result.answer.result[i].ACTIVE==true&&result.answer.result[i]!=undefined){
                         employes.push(result.data()[i].LAST_NAME);
                         employes.sort();
-                        elemForDispatch.dispatchEvent(emplsFound);
+                        elemForDispatch.dispatchEvent(clickEvent);
                      }
                  }             
             }              
@@ -56,34 +56,33 @@ $(document).ready(function(){
             
     });
     
-    $('#filterButton').click(function(e){  
-        time=performance.now()
-        timeB=0;        
-        
+    $('#filterButton').click(function(e){
         $('.mainTableHeader').next().html('<table id="mainTable"  width="100%" class="mainTable table table-bordered table-hover filterTable"><tr id="tableHead" class="tableHead labelRow success"><td class="tableNumber">№</td><td id="tableTaskName">Компания</td><td id="tableDeadline">Количество звонков</td><td id="tableDeadline">Контакт</td><td id="tableClosedDate">Дата начала разговора</td><td id="tableClosedDate">Продолжительность звонка</td><td id="tableClosedDate">Тип звонка</td></tr> </table>'); 
-        
-        
-                 
-        
-                var filterBeginTime= new Date($('#filterBeginTime').val());
-                var filterEndTime= new Date($('#filterEndTime').val());
+         filterBeginTime= new Date($('#filterBeginTime').val());
+         filterEndTime= new Date($('#filterEndTime').val());
+         filterMinTime=$('#filterMinTime').val();
+         filterMaxTime=$('#filterMaxTime').val();
                /*Проверка валидности даты*/
-                if (filterEndTime<filterBeginTime|| filterBeginTime== "Invalid Date"||filterEndTime== "Invalid Date"){
-                   alert("Введите корректное время");
-                }
+        if (filterEndTime<filterBeginTime|| filterBeginTime== "Invalid Date"||filterEndTime== "Invalid Date"){
+            alert("Введите корректное время");
+        }
                
-               /*Получение фильтрованных данных из задач*/
+               /*Получение ИД выбранного пользователя*/
         
-               BX24.callMethod('user.get', {"LAST_NAME": `${$('#filterUsersList').val()}`}, function(result){
-                   filteredUser=result.data()[0].ID;  
-                   elemForDispatch.dispatchEvent(IDFound);
-               });
+        BX24.callMethod('user.get', {"LAST_NAME": `${$('#filterUsersList').val()}`}, function(result){
+             filteredUser=result.data()[0].ID;  
+            elemForDispatch.dispatchEvent(blurEvent);
+        });
+        
+        
         
         $('#elemForDispatch').blur(function(e){
-           
-                BX24.callMethod('voximplant.statistic.get',{"FILTER": 
-                {">CALL_DURATION":30, "PORTAL_USER_ID":filteredUser, ">CALL_START_DATE":filterBeginTime, "<CALL_START_DATE":filterEndTime}
-                },function(result){
+                BX24.callMethod('voximplant.statistic.get',{"FILTER": {
+                ">CALL_DURATION":filterMinTime,
+            "<CALL_DURATION":filterMaxTime,
+            "PORTAL_USER_ID":filteredUser,
+            ">CALL_START_DATE":filterBeginTime,
+            "<CALL_START_DATE":filterEndTime}},function(result){
                     if(result.error()) {
                         console.error(result.error());
                     }else {                        
@@ -104,8 +103,10 @@ $(document).ready(function(){
                         if (result.more()){               
                             result.next();
                         } else {                       
-                           currentLead=leadCount-1;
-                           elemForDispatch.dispatchEvent(callsFound);  
+                           console.log(leadCalls);
+                            console.log(contactCalls);
+                            console.log(unknownCalls);
+                           //elemForDispatch.dispatchEvent(callsFound);  
                         }
                     }                        
                 }   
