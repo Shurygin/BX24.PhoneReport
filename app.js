@@ -10,7 +10,9 @@ Date.prototype.toDateInputValue = (function() {
         let unworkedFound = new Event("focus");
         let companyesFound = new Event("change");
 
-
+let unknownCalls=[],leadCalls=[],contactCalls=[];
+        let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,currentLead=0,companyNumber=0,filteredUser=0;
+        let row="",currentContact="",callTime="";
 
 
 
@@ -54,9 +56,7 @@ $(document).ready(function(){
     });
     
     $('#filterButton').click(function(e){  
-        let unknownCalls=[],leadCalls=[],contactCalls=[];
-        let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,currentLead=0,companyNumber=0,filteredUser=0;
-        let row="",currentContact="",callTime="";
+        
         
 
         
@@ -211,12 +211,9 @@ $(document).ready(function(){
                                 elemForDispatch.dispatchEvent(unworkedFound);
                             },200);
                         } else{ 
-                            
                             setTimeout(function(){
-                                
                                 BX24.callMethod("crm.company.get", { id: result.data().COMPANY_ID}, function(result){
 				                    if(result.error()){
-                                        console.log(contactCalls[currentLead]);
                                        callTime=(Math.floor(contactCalls[currentLead].CALL_DURATION / 60)) + ':' + (contactCalls[currentLead].CALL_DURATION % 60);
                                         if (contactCalls[currentLead].CALL_TYPE==1){
                                             row=`<tr><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${currentContact}</td><td>${contactCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
@@ -252,13 +249,12 @@ $(document).ready(function(){
                     }
                 });
             } else{
-               if(nullCount!=0){                
+               if(nullCount!=0){ 
+                   console.log(currentLead);
                         row=`<tr class="${companyNumber}"><td>${rowNumber}</td><td class="detailsForCalls">Не закреплены</td><td>${nullCount}</td></tr>`;                
                         $('#mainTable').children().children().last().after(row);
                         rowNumber++;
-                        companyNumber++;
-                        currentLead=contactCount-1;
-                                                
+                        companyNumber++;                        
                 } 
             }
         });
@@ -274,8 +270,7 @@ $(document).ready(function(){
                         } else{
                             row=`<tr class="detailRow${companyNumber}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${unknownCalls[i].PHONE_NUMBER}</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
                         }                    
-                        if (i==0){                        ;
-                                  ew    
+                        if (i==0){   
                             $('.detailsForCalls').parent().after(row);
                             rowNumber++;
                         } else if (i==(nullCount-1)){
