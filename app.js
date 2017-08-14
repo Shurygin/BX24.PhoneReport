@@ -3,16 +3,15 @@ Date.prototype.toDateInputValue = (function() {
     local.setMinutes(this.getMinutes() - this.getTimezoneOffset());
     return local.toJSON().slice(0,10);
 }); 
-let emplsFound = new Event("click");
-let IDFound = new Event("dblclick");
-let callsFound = new Event("blur");
 
-let callCategory, callDuration,callDate,callNumber;
-let leadID=[];
-let contactID=[];
-let unknownCalls=[],leadCalls=[],contactCalls=[];
-let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,callTime="";
-let row="",companyNumber=0;
+        let emplsFound = new Event("click");
+        let IDFound = new Event("blur");
+        let callsFound = new Event("dblclick");
+        let unworkedFound = new Event("focus");
+        let companyesFound = new Event("change");
+
+
+
 
 
 $(document).ready(function(){
@@ -54,15 +53,18 @@ $(document).ready(function(){
             
     });
     
-    $('#filterButton').click(function(){  
+    $('#filterButton').click(function(e){  
+        let unknownCalls=[],leadCalls=[],contactCalls=[];
+        let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,currentLead=0,companyNumber=0,filteredUser=0;
+        let row="",currentContact="",callTime="";
         
-        /*Очистка старого отчёта*/
-        leadID=[],contactID=[],unknownCalls=[],leadCalls=[],contactCalls=[],leadCount=0,contactCount=0,nullCount=0,rowNumber=1,callTime="";
+
+        
+        $('.mainTableHeader').next().html('<table id="mainTable"  width="100%" class="mainTable table table-bordered table-hover filterTable"><tr id="tableHead" class="tableHead labelRow success"><td class="tableNumber">№</td><td id="tableTaskName">Компания</td><td id="tableDeadline">Количество звонков</td><td id="tableDeadline">Контакт</td><td id="tableClosedDate">Дата начала разговора</td><td id="tableClosedDate">Продолжительность звонка</td><td id="tableClosedDate">Тип звонка</td></tr> </table>'); 
         
         
-               /*Ввод пользовательских данных*/
+                 
         
-                let filteredUser;                
                 var filterBeginTime= new Date($('#filterBeginTime').val());
                 var filterEndTime= new Date($('#filterEndTime').val());
                /*Проверка валидности даты*/
@@ -71,19 +73,21 @@ $(document).ready(function(){
                 }
                
                /*Получение фильтрованных данных из задач*/
+        
                BX24.callMethod('user.get', {"LAST_NAME": `${$('#filterUsersList').val()}`}, function(result){
-                   filteredUser=result.data()[0].ID;                   
-                   elemForDispatch.dispatchEvent(IDFound); 
+                   filteredUser=result.data()[0].ID;  
+                   elemForDispatch.dispatchEvent(IDFound);
                });
-        $('#elemForDispatch').dblclick(function(){             
+        
+        $('#elemForDispatch').blur(function(e){
             BX24.callMethod('voximplant.statistic.get',{"FILTER": 
-                {">CALL_DURATION":30, "PORTAL_USER_ID":filteredUser, ">CALL_START_DATE":filterBeginTime, "<CALL_START_DATE":filterEndTime},
-                "SORT": "CALL_DURATION",         "ORDER": "DESC",      },function(result){
+                {">CALL_DURATION":30, "PORTAL_USER_ID":filteredUser, ">CALL_START_DATE":filterBeginTime, "<CALL_START_DATE":filterEndTime}
+                },function(result){
                     if(result.error()) {
                         console.error(result.error());
                     }else {                        
                         for (i=0;i<50;i++){
-                            if(result.data()[i]!=undefined){
+                            if(result.data()[i]!=undefined){                                
                                 if(result.data()[i].CRM_ENTITY_TYPE=="LEAD"){
                                     leadCount++;    
                                     leadCalls.push(result.data()[i]);
@@ -99,30 +103,179 @@ $(document).ready(function(){
                         if (result.more()){               
                             result.next();
                         } else {
+                           currentLead=leadCount-1;
                            elemForDispatch.dispatchEvent(callsFound);  
                         }
                     }                        
                 }   
             );
         }); 
-        $('#elemForDispatch').blur(function(){            
-            if(nullCount!=0){                
-                row=`<tr class="${companyNumber}"><td>${rowNumber}</td><td class="detailsForCalls">Не закреплены</td><td>${nullCount}</td></tr>`;                
-                $('#tableHead').after(row);
-                rowNumber++;
-                companyNumber++;                
-            }      
+        $('#elemForDispatch').dblclick(function(){  
+            if (leadCount!=0){                
+                if (currentLead>=0){
+                    BX24.callMethod("crm.lead.get", { id: leadCalls[currentLead].CRM_ENTITY_ID },function(result){
+				        if(result.error()){
+                            console.error(result.error());
+                            currentLead--;
+                            setTimeout(function(){
+                                elemForDispatch.dispatchEvent(callsFound);
+                            },200);
+                        }
+				        else{
+                            if(result.data().CONTACT_ID==null){
+                                nullCount++;
+                                unknownCalls.push(leadCalls.pop());
+                                currentLead--;
+                                setTimeout(function(){
+                                    elemForDispatch.dispatchEvent(callsFound);
+                                },200);
+                            } else{                                 
+                                                              
+                                BX24.callMethod("crm.contact.get",{ id: result.data().CONTACT_ID},function(result){
+				                    if(result.error()){                            
+                                        console.error(result.data().CONTACT_ID);
+                                        currentLead--;
+                                        setTimeout(function(){
+                                                elemForDispatch.dispatchEvent(callsFound);
+                                        },200);
+                                    } else{
+                                        currentContact=result.data().LAST_NAME;
+                                        if (result.data().COMPANY_ID==null){
+                                            
+                                            callTime=(Math.floor(leadCalls[currentLead].CALL_DURATION / 60)) + ':' + (leadCalls[currentLead].CALL_DURATION % 60);
+                                            if (leadCalls[currentLead].CALL_TYPE==1){
+                                                row=`<tr><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${currentContact}</td><td>${leadCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
+                                            } else{
+                                                row=`<tr><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${currentContact}</td><td>${leadCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
+                                            } 
+                                            $('#mainTable').children().children().last().after(row);
+                                            rowNumber++; 
+                                            currentLead--;
+                                            setTimeout(function(){
+                                                elemForDispatch.dispatchEvent(callsFound);
+                                            },200);
+                                        } else{
+                                            
+                                            BX24.callMethod("crm.company.get", { id: result.data().COMPANY_ID}, function(result){
+				                                if(result.error()){
+                                                    console.error(result.error());
+                                                } else{                                               
+                                                    callTime=(Math.floor(leadCalls[currentLead].CALL_DURATION / 60)) + ':' + (leadCalls[currentLead].CALL_DURATION % 60);
+                                                    if (leadCalls[currentLead].CALL_TYPE==1){
+                                                        row=`<tr><td>${rowNumber}</td><td>${result.data().TITLE}</td><td>1</td><td>${currentContact}</td><td>${leadCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
+                                                    } else{
+                                                        row=`<tr><td>${rowNumber}</td><td>${result.data().TITLE}</td><td>1</td><td>${currentContact}</td><td>${leadCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
+                                                    } 
+                                                    $('#mainTable').children().children().last().after(row);
+                                                    rowNumber++;
+                                                }
+			                                 });
+                                            currentLead--;
+                                            setTimeout(function(){
+                                                elemForDispatch.dispatchEvent(callsFound);
+                                            },200);
+                                        }
+                                    }
+                                });
+                            }
+                        }
+			         });
+                } else {
+                    currentLead=contactCount-1;
+                    elemForDispatch.dispatchEvent(unworkedFound);                    
+                }
+            }
         });
-        $(document).on('click','.detailsForCalls',function(){            
+        $('#elemForDispatch').focus(function(){
+            if(currentLead>=0){
+                BX24.callMethod("crm.contact.get",{ id: contactCalls[currentLead].CRM_ENTITY_ID},function(result){
+				    if(result.error()){                            
+                        console.error(contactCalls[currentLead]);
+                        currentLead--;
+                        setTimeout(function(){
+                            elemForDispatch.dispatchEvent(unworkedFound);
+                        },200);
+                    } else{
+                        currentContact=result.data().LAST_NAME;
+                        if (result.data().COMPANY_ID==null){                                                       
+                            callTime=(Math.floor(contactCalls[currentLead].CALL_DURATION / 60)) + ':' + (contactCalls[currentLead].CALL_DURATION % 60);
+                            if (contactCalls[currentLead].CALL_TYPE==1){
+                                row=`<tr><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${currentContact}</td><td>${contactCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
+                            } else{
+                                row=`<tr><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${currentContact}</td><td>${contactCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
+                            } 
+                            $('#mainTable').children().children().last().after(row);
+                            rowNumber++; 
+                            currentLead--;
+                            setTimeout(function(){
+                                elemForDispatch.dispatchEvent(unworkedFound);
+                            },200);
+                        } else{ 
+                            
+                            setTimeout(function(){
+                                
+                                BX24.callMethod("crm.company.get", { id: result.data().COMPANY_ID}, function(result){
+				                    if(result.error()){
+                                        console.log(contactCalls[currentLead]);
+                                       callTime=(Math.floor(contactCalls[currentLead].CALL_DURATION / 60)) + ':' + (contactCalls[currentLead].CALL_DURATION % 60);
+                                        if (contactCalls[currentLead].CALL_TYPE==1){
+                                            row=`<tr><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${currentContact}</td><td>${contactCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
+                                        } else{
+                                            row=`<tr><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${currentContact}</td><td>${contactCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
+                                        } 
+                                        $('#mainTable').children().children().last().after(row);
+                                        rowNumber++; 
+                                        currentLead--;
+                                        setTimeout(function(){
+                                            elemForDispatch.dispatchEvent(unworkedFound);
+                                        },200);
+                                    } else{                                        
+                                        if(contactCalls[currentLead]!=undefined){
+                                            callTime=(Math.floor(contactCalls[currentLead].CALL_DURATION / 60)) + ':' + (contactCalls[currentLead].CALL_DURATION % 60);
+                                            if (contactCalls[currentLead].CALL_TYPE==1){
+                                                row=`<tr><td>${rowNumber}</td><td>${result.data().TITLE}</td><td>1</td><td>${currentContact}</td><td>${contactCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
+                                            } else{
+                                                row=`<tr><td>${rowNumber}</td><td>${result.data().TITLE}</td><td>1</td><td>${currentContact}</td><td>${contactCalls[currentLead].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
+                                            } 
+                                            $('#mainTable').children().children().last().after(row);
+                                            rowNumber++;
+                                        }
+                                    }
+			                     });
+                                currentLead--;
+                                setTimeout(function(){
+                                    elemForDispatch.dispatchEvent(unworkedFound);
+                                },200);
+                            },1500)
+                            
+                        }
+                    }
+                });
+            } else{
+               if(nullCount!=0){                
+                        row=`<tr class="${companyNumber}"><td>${rowNumber}</td><td class="detailsForCalls">Не закреплены</td><td>${nullCount}</td></tr>`;                
+                        $('#mainTable').children().children().last().after(row);
+                        rowNumber++;
+                        companyNumber++;
+                        currentLead=contactCount-1;
+                                                
+                } 
+            }
+        });
+        $('#elemForDispatch').change(function(){
+            
+        });
+        $(document).on('click','.detailsForCalls',function(){
             companyNumber=$(this).parent().attr('class');            
             for (i=0;i<nullCount;i++){
-                        callTime=(Math.floor(unknownCalls[i].CALL_DURATION / 60)) + ':' + (unknownCalls[i].CALL_DURATION % 60);
-                        if (unknownCalls[i].CALL_CATEGORY=='external'){
-                            row=`<tr class="detailRow${companyNumber}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>Неизвестный</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
+                        callTime=(Math.floor(unknownCalls[i].CALL_DURATION / 60)) + ':' + (unknownCalls[i].CALL_DURATION % 60);                        
+                        if (unknownCalls[i].CALL_TYPE==1){
+                            row=`<tr class="detailRow${companyNumber}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${unknownCalls[i].PHONE_NUMBER}</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
                         } else{
-                            row=`<tr class="detailRow${companyNumber}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>Неизвестный</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Исходящий</td></tr>`;
+                            row=`<tr class="detailRow${companyNumber}"><td>${rowNumber}</td><td>Не закреплены</td><td>1</td><td>${unknownCalls[i].PHONE_NUMBER}</td><td>${unknownCalls[i].CALL_START_DATE}</td><td>${callTime}</td><td>Входящий</td></tr>`;
                         }                    
-                        if (i==0){                            
+                        if (i==0){                        ;
+                                  ew    
                             $('.detailsForCalls').parent().after(row);
                             rowNumber++;
                         } else if (i==(nullCount-1)){
