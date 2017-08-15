@@ -10,11 +10,12 @@ Date.prototype.toDateInputValue = (function() {
         let focusEvent = new Event("focus");
         let changeEvent = new Event("change");
 
-let unknownCalls=[],leadCalls=[],contactCalls=[];
-        let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,currentLead=0,companyNumber=0,filteredUser=0;
+let unknownCalls=[],leadCalls=[],contactCalls=[],leadList=[],contactList=[],companyList=[],companyCalls=[];
+        let leadCount=0,contactCount=0,nullCount=0,rowNumber=1,currentLead=0,companyNumber=0,filteredUser=0,searchProc=0;
         let row="",currentContact="",callTime="";
 let currentCall;
 let filterBeginTime,filterEndTime,filterMinTime,filterMaxTime,filterOptions;
+let contactsFound=false,companyesFound=false;
        
 
 $(document).ready(function(){
@@ -47,16 +48,17 @@ $(document).ready(function(){
             }              
          }  
      });
-     
+    /*генерация списка сотрудников one стоит, чтобы не выполнялась лишний раз*/
     $('#elemForDispatch').one('click',function(){                        
-            l = employes.length;
-            for (k=0;k<l;k++){
-                $('#filterUsersList').append(`<option value = "${employes[k]}">${employes[k]}</option>`);        
-            }
-            
+        l = employes.length;
+        for (k=0;k<l;k++){
+            $('#filterUsersList').append(`<option value = "${employes[k]}">${employes[k]}</option>`);        
+        } 
     });
-    
-    $('#filterButton').click(function(e){
+    /*действия при клике, обнуление данных, перестроение таблицы, получение данных для фильтра, получение ИД пользователя*/
+    $('#filterButton').click(function(){
+        leadCount=0,contactCount=0,nullCount=0,rowNumber=1,currentLead=0,companyNumber=0,filteredUser=0,searchProc=0;
+        unknownCalls=[],leadCalls=[],contactCalls=[];
         $('.mainTableHeader').next().html('<table id="mainTable"  width="100%" class="mainTable table table-bordered table-hover filterTable"><tr id="tableHead" class="tableHead labelRow success"><td class="tableNumber">№</td><td id="tableTaskName">Компания</td><td id="tableDeadline">Количество звонков</td><td id="tableDeadline">Контакт</td><td id="tableClosedDate">Дата начала разговора</td><td id="tableClosedDate">Продолжительность звонка</td><td id="tableClosedDate">Тип звонка</td></tr> </table>'); 
          filterBeginTime= new Date($('#filterBeginTime').val());
          filterEndTime= new Date($('#filterEndTime').val());
@@ -65,56 +67,137 @@ $(document).ready(function(){
                /*Проверка валидности даты*/
         if (filterEndTime<filterBeginTime|| filterBeginTime== "Invalid Date"||filterEndTime== "Invalid Date"){
             alert("Введите корректное время");
-        }
-               
+        } 
                /*Получение ИД выбранного пользователя*/
-        
         BX24.callMethod('user.get', {"LAST_NAME": `${$('#filterUsersList').val()}`}, function(result){
-             filteredUser=result.data()[0].ID;  
+             filteredUser=result.data()[0].ID;            
             elemForDispatch.dispatchEvent(blurEvent);
         });
-        
-        
-        
-        $('#elemForDispatch').blur(function(e){
-                BX24.callMethod('voximplant.statistic.get',{"FILTER": {
-                ">CALL_DURATION":filterMinTime,
-            "<CALL_DURATION":filterMaxTime,
-            "PORTAL_USER_ID":filteredUser,
-            ">CALL_START_DATE":filterBeginTime,
-            "<CALL_START_DATE":filterEndTime}},function(result){
-                    if(result.error()) {
-                        console.error(result.error());
-                    }else {                        
-                        for (i=0;i<50;i++){
-                            if(result.data()[i]!=undefined){                                
-                                if(result.data()[i].CRM_ENTITY_TYPE=="LEAD"){
-                                    leadCount++;    
-                                    leadCalls.push(result.data()[i]);
-                                } else if (result.data()[i].CRM_ENTITY_TYPE=="CONTACT"){
-                                    contactCount++;
-                                    contactCalls.push(result.data()[i]);
-                                } else{
-                                    nullCount++;
-                                    unknownCalls.push(result.data()[i]);                                    
-                                }  
-                            }                                                    
-                        }                        
-                        if (result.more()){               
-                            result.next();
-                        } else {                       
-                           console.log(leadCalls);
-                            console.log(contactCalls);
-                            console.log(unknownCalls);
-                           //elemForDispatch.dispatchEvent(callsFound);  
-                        }
-                    }                        
-                }   
-            );
+    }); 
+    /*поиск звонков по фильтру и разбитие их в массивы, поиск лидов, контактов и компаний*/
+    $('#elemForDispatch').blur(function(){
+        BX24.callMethod('voximplant.statistic.get',
+            {
+            "FILTER": {">CALL_DURATION":filterMinTime,"<CALL_DURATION":filterMaxTime,"PORTAL_USER_ID":filteredUser,">CALL_START_DATE":filterBeginTime,"<CALL_START_DATE":filterEndTime
+                    }
+            },function(result){
+            if(result.error()) {
+                console.error(result.error());
+            }else {                        
+                for (i=0;i<50;i++){
+                    if(result.data()[i]!=undefined){                                
+                        if(result.data()[i].CRM_ENTITY_TYPE=="LEAD"){
+                            leadCount++;    
+                            leadCalls.push(result.data()[i]);
+                        } else if (result.data()[i].CRM_ENTITY_TYPE=="CONTACT"){
+                            contactCount++;
+                            contactCalls.push(result.data()[i]);
+                        } else{
+                            nullCount++;
+                            unknownCalls.push(result.data()[i]);                                    
+                        }  
+                    }                                                    
+                }                        
+                if (result.more()){               
+                    result.next();
+                } else {
+                    
+        BX24.callMethod("crm.lead.list", 
+			{ 
+                filter: { "CREATED_BY_ID": filteredUser, ">DATE_CREATE": filterBeginTime, "<DATE_CREATE": filterEndTime },
+				select: [ "ID",  "CONTACT_ID", "COMPANY_TITLE","DATE_CREATE" ]
+			}, 
+			function(result) 
+			{
+				if(result.error()){
+                    console.error(result.error());
+                } else {
+					result.data().forEach(function(lead,i){
+                        leadList.push(lead);
+                    });		
+					if(result.more()){
+                        result.next();
+                    } else{
+                        elemForDispatch.dispatchEvent(changeEvent);
+                        console.log(leadList);
+                    }												
+				}
+			}
+        );  
+                    
+                }
+            }                        
+        });
+            
+    }); 
+    /*Поиск компаний и контактов*/
+    $('#elemForDispatch').change(function(){
+       BX24.callMethod("crm.contact.list",{select: [ "ID",  "LAST_NAME","COMPANY_ID","PHONE" ]},function(result){
+            if(result.error()){
+               console.error(result.error()); 
+            }else{
+                result.data().forEach(function(contact,i){
+                    contactList.push(contact);
+                });	
+                if(result.more()&&contactList.length%2000==0){
+                    setTimeout(function(){
+                        result.next(); 
+                    },1000);
+                } else if(result.more()){
+                    result.next();
+                } else{
+                    console.log("contacts found");
+                    setTimeout(function(){
+                        BX24.callMethod("crm.company.list", { select: [ "ID", "TITLE" ]	},function(result){
+				if(result.error()){
+                    console.error(result.error());
+                }else {
+					result.data().forEach(function(company,i){
+                        companyList.push(company);
+                    });			
+					if(result.more()&&companyList.length%2000==0){
+                        setTimeout(function(){
+                           result.next(); 
+                        },1000);
+                    } else if(result.more()) {
+                        result.next();
+                    } else{
+                         console.log("companyes found");
+                        elemForDispatch.dispatchEvent(dblclickEvent);
+                    }
+				}
+			}
+		);
                         
-        }); 
+                    },5000);
+        
+                }																
+            }
+        });
+    });
+    
+    
+    
         $('#elemForDispatch').dblclick(function(){  
-            if (leadCount!=0){                
+           if (leadCount>0){
+               leadCalls.forEach(function(lead, i){
+                   if (lead.CONTACT_ID==null&&lead.COMPANY_ID==null){
+                        nullCount++;
+                        unknownCalls.push(lead);
+                   } else if(lead.CONTACT_ID==null){
+                       companyCalls.push(lead);
+                   } else {
+                       contactCalls.push(lead);
+                   }
+                   if (i==(leadCalls.length-1)){
+                       
+                   }
+               });
+            }
+             
+        });
+        $('#elemForDispatch').focus(function(){  
+             if (leadCount!=0){                
                 if (currentLead>=0){
                     BX24.callMethod("crm.lead.get", { id: leadCalls[currentLead].CRM_ENTITY_ID },function(result){
 				        if(result.error()){
@@ -188,9 +271,6 @@ $(document).ready(function(){
                     elemForDispatch.dispatchEvent(unworkedFound);                    
                 }
             }
-        });
-        $('#elemForDispatch').focus(function(){  
-            
             time=performance.now()-time;                        
             if(time>20000){
                 
@@ -272,9 +352,7 @@ $(document).ready(function(){
             
             
            
-        $('#elemForDispatch').change(function(){
-            
-        });
+        
         $(document).on('click','.detailsForCalls',function(){
             companyNumber=$(this).parent().attr('class');            
             for (i=0;i<nullCount;i++){
@@ -303,6 +381,8 @@ $(document).ready(function(){
             $(this).attr('class','detailsForCalls');
         });
         
-    });
+    
     
 }); 
+
+
